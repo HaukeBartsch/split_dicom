@@ -13,7 +13,7 @@ docker build -t split_dicom build
 ```
 ## Run
 
-For development its nicer to mount the source folder inside the docker container. The build can be done in Linux which the hosts editor can be used to develop features:
+Suggestion: For development its nice to mount the source folder inside the docker container. The build can be done in Linux while the hosts editor can be used to develop features:
 
 ```
 docker run --rm -it -v /Users/hauke/src/split_dicom:/root/split_dicom split_dicom /bin/bash
