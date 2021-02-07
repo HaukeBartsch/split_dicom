@@ -222,7 +222,9 @@ int main(int argc, char **argv) {
 
     change_image.GetBuffer(buffer);
 
-    int lenL = pixelsize * (xmax / 2) * ymax;
+    int xmax2L = xmax / 2;
+    int xmax2R = xmax - xmax2L;
+    int lenL = pixelsize * xmax2L * ymax;
     int lenR = len - lenL;
     //fprintf(stdout, "%d %d %d\n", len, lenL, lenR);
 
@@ -235,18 +237,15 @@ int main(int argc, char **argv) {
       for (int yi = 0; yi < ymax; yi++) {
         for (int xi = 0; xi < xmax; xi++) {
           int idx = yi * xmax + xi;
-          int idx2 = yi * xmax/2;
-          if (xi > xmax/2)
-            idx2 += xi - (xmax / 2);
-          else
-            idx2 += xi;
-
-          if (xi <= xmax / 2 ) {
-            bL[idx2] = bvals[idx];
-          } else {
+          if (xi >= xmax2L) {
+            int idx2 = yi * xmax2R + (xi - xmax2L);
             bR[idx2] = bvals[idx];
+            // fprintf(stdout, "  COPY R xi: %d yi: %d (xmax2L: %d, xmax2R: %d, xmax: %d)\n", xi, yi, xmax2L, xmax2R, xmax);
+          } else {
+            int idx2 = yi * xmax2L + xi;
+            bL[idx2] = bvals[idx];
           }
-        }
+       }
       }
     }
 
@@ -305,9 +304,9 @@ int main(int argc, char **argv) {
     gdcm::SmartPointer<gdcm::Image> imL = new gdcm::Image;
     gdcm::SmartPointer<gdcm::Image> imR = new gdcm::Image;
     imL->SetNumberOfDimensions(2);
-    imL->SetDimension(0, xmax/2);
+    imL->SetDimension(0, xmax2L);
     imL->SetDimension(1, ymax);
-    fprintf(stdout, "dimensions are: %d %d\n", xmax / 2, ymax);
+    fprintf(stdout, "dimensions are: %d %d\n", xmax2L, ymax);
     imL->SetPhotometricInterpretation(change_image.GetPhotometricInterpretation());
     imL->GetPixelFormat().SetSamplesPerPixel(1);
     imL->GetPixelFormat().SetBitsAllocated(change_image.GetPixelFormat().GetBitsAllocated());
@@ -321,9 +320,9 @@ int main(int argc, char **argv) {
 
     // we need to change the Origin as well so that we can overlay with referenced images
     imR->SetNumberOfDimensions(2);
-    imR->SetDimension(0, xmax - (xmax/2));
+    imR->SetDimension(0, xmax2R);
     imR->SetDimension(1, ymax);
-    fprintf(stdout, "dimensions are: %d %d\n", xmax - (xmax/2), ymax);
+    fprintf(stdout, "dimensions are: %d %d\n", xmax2R, ymax);
     imR->SetPhotometricInterpretation(change_image.GetPhotometricInterpretation());
     imR->GetPixelFormat().SetSamplesPerPixel(1);
     imR->GetPixelFormat().SetBitsAllocated(change_image.GetPixelFormat().GetBitsAllocated());
@@ -368,6 +367,14 @@ int main(int argc, char **argv) {
       fprintf(stdout, "FOUND SeriesDescription: %s\n", SeriesDescription.c_str());
     }
 
+    std::string StudyDescription = "";
+    gdcm::Tag StudyDescription_tag(0x0008, 0x1030);
+    if (ds.FindDataElement(StudyDescription_tag)) {
+      gdcm::StringFilter sf;
+      sf.SetFile(file);
+      StudyDescription = sf.ToString(StudyDescription_tag);
+    }
+
     gdcm::Attribute<0x0020, 0x00d> ss3; // StudyInstanceUID - make this deterministic, use input + .1 and .2
     ss3.SetValue(StudyInstanceUID + ".1");
     ds.Replace(ss3.GetAsDataElement());
@@ -387,6 +394,10 @@ int main(int argc, char **argv) {
     gdcm::Attribute<0x0008, 0x103e> ss6;
     ss6.SetValue(SeriesDescription + " (L)"); // same series instance uid for each file
     ds.Replace(ss6.GetAsDataElement());
+
+    gdcm::Attribute<0x0008, 0x1030> ss8;
+    ss8.SetValue(StudyDescription + " (L)"); // same series instance uid for each file
+    ds.Replace(ss8.GetAsDataElement());
 
     //gdcm::Attribute<0x28,0x8> at;
     //at.SetFromDataElement( ds.GetDataElement( at.GetTag() ) );
@@ -418,6 +429,10 @@ int main(int argc, char **argv) {
     gdcm::Attribute<0x0008, 0x103e> ss7;
     ss7.SetValue(SeriesDescription + " (R)"); // same series instance uid for each file
     ds.Replace(ss7.GetAsDataElement());
+
+    gdcm::Attribute<0x0008, 0x1030> ss9;
+    ss9.SetValue(StudyDescription + " (R)"); // same series instance uid for each file
+    ds.Replace(ss9.GetAsDataElement());
 
     snprintf(outputfilename, 1024 - 1, "%s/right/%08d.dcm", output.c_str(), i);
     gdcm::ImageWriter writer2;
