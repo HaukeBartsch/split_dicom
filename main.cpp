@@ -358,6 +358,10 @@ int main(int argc, char **argv) {
       //fprintf(stdout, "FOUND StudyInstanceUID: %s\n", StudyInstanceUID.c_str());
     }
 
+    // we will add two more characters at the end - hope that the strings remain unique
+    StudyInstanceUID = StudyInstanceUID.substr(0, std::min(62, (int)(StudyInstanceUID.size())));
+    SeriesInstanceUID = SeriesInstanceUID.substr(0, std::min(62, (int)(SeriesInstanceUID.size())));
+
     std::string SeriesDescription = "";
     gdcm::Tag SeriesDescription_tag(0x0008, 0x103e);
     if (ds.FindDataElement(SeriesDescription_tag)) {
